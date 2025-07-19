@@ -107,6 +107,10 @@ def backup_data():
 # Initialize session state
 def initialize_session_state():
     """Initialize session state with default values or load from file"""
+    # Initialize confirmation states
+    if 'confirm_clear_data' not in st.session_state:
+        st.session_state.confirm_clear_data = False
+    
     # Try to load existing data first
     if not load_data():
         # If loading fails, initialize with defaults
@@ -172,6 +176,9 @@ def clear_all_data():
     for team, players in st.session_state.teams.items():
         for player in players:
             st.session_state.player_stats[player] = {'goals': 0, 'assists': 0, 'team': team}
+    
+    # Reset confirmation state
+    st.session_state.confirm_clear_data = False
     
     # Save the cleared data
     save_data()
@@ -447,14 +454,28 @@ def main():
         st.warning("⚠️ This will permanently delete all match data, statistics, and reset the league table!")
         st.info("💡 A backup will be created automatically before clearing data.")
         
-        if st.button("🗑️ Clear All Data", type="secondary"):
-            if st.button("⚠️ Confirm - Clear All Data", type="primary"):
-                backup_filename = clear_all_data()
-                if backup_filename:
-                    st.success(f"All data cleared! Backup saved as: {backup_filename}")
-                else:
-                    st.success("All data cleared!")
+        # Fixed clear data logic using session state
+        if not st.session_state.confirm_clear_data:
+            if st.button("🗑️ Clear All Data", type="secondary"):
+                st.session_state.confirm_clear_data = True
                 st.rerun()
+        else:
+            st.error("⚠️ **Are you sure you want to clear ALL data?** This action cannot be undone!")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("✅ Yes, Clear Everything", type="primary"):
+                    backup_filename = clear_all_data()
+                    if backup_filename:
+                        st.success(f"All data cleared! Backup saved as: {backup_filename}")
+                    else:
+                        st.success("All data cleared!")
+                    st.rerun()
+            
+            with col2:
+                if st.button("❌ Cancel", type="secondary"):
+                    st.session_state.confirm_clear_data = False
+                    st.rerun()
 
 if __name__ == "__main__":
     main()
