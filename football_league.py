@@ -211,18 +211,18 @@ def main():
             
             col1a, col1b = st.columns(2)
             with col1a:
-                home_team = st.selectbox("Home Team", teams, key="home_team")
+                home_team = st.selectbox("Home Team", teams, key="match_home_team")
             with col1b:
                 available_away_teams = [team for team in teams if team != home_team]
-                away_team = st.selectbox("Away Team", available_away_teams, key="away_team")
+                away_team = st.selectbox("Away Team", available_away_teams, key="match_away_team")
             
-            match_date = st.date_input("Match Date", value=datetime.now().date())
+            match_date = st.date_input("Match Date", value=datetime.now().date(), key="match_date_input")
             
             col2a, col2b = st.columns(2)
             with col2a:
-                home_score = st.number_input(f"{home_team} Score", min_value=0, value=0, step=1)
+                home_score = st.number_input(f"{home_team} Score", min_value=0, value=0, step=1, key="match_home_score")
             with col2b:
-                away_score = st.number_input(f"{away_team} Score", min_value=0, value=0, step=1)
+                away_score = st.number_input(f"{away_team} Score", min_value=0, value=0, step=1, key="match_away_score")
             
             # Scorers section
             st.subheader("Goal Scorers")
@@ -246,7 +246,7 @@ def main():
                         scorer = st.selectbox(
                             f"Scorer",
                             ['None'] + st.session_state.teams[scoring_team],
-                            key=f"scorer_{i}"
+                            key=f"match_scorer_{i}"
                         )
                         scorers_data.append({'player': scorer, 'team': scoring_team})
                     
@@ -254,7 +254,7 @@ def main():
                         assist_player = st.selectbox(
                             f"Assist",
                             ['None'] + st.session_state.teams[scoring_team],
-                            key=f"assist_{i}"
+                            key=f"match_assist_{i}"
                         )
                         assists_data.append({'player': assist_player, 'team': scoring_team})
             
@@ -455,9 +455,6 @@ def main():
                 else:
                     st.success("All data cleared!")
                 st.rerun()
-
-if __name__ == "__main__":
-    main()
 
 if __name__ == "__main__":
     main()
