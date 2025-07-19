@@ -2,34 +2,126 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
 import json
+import os
+
+# Data persistence functions
+def get_data_file_path():
+    """Get the path for the data file, ensuring the directory exists"""
+    data_dir = "data"
+    if not os.path.exists(data_dir):
+        os.makedirs(data_dir)
+    return os.path.join(data_dir, "league_data.json")
+
+def save_data():
+    """Save all session state data to JSON file"""
+    try:
+        data = {
+            'matches': st.session_state.matches,
+            'league_table': st.session_state.league_table,
+            'player_stats': st.session_state.player_stats,
+            'teams': st.session_state.teams,
+            'last_updated': datetime.now().isoformat()
+        }
+        
+        file_path = get_data_file_path()
+        with open(file_path, 'w') as f:
+            json.dump(data, f, indent=2)
+        
+        return True
+    except Exception as e:
+        st.error(f"Error saving data: {str(e)}")
+        return False
+
+def load_data():
+    """Load data from JSON file into session state"""
+    try:
+        file_path = get_data_file_path()
+        if os.path.exists(file_path):
+            with open(file_path, 'r') as f:
+                data = json.load(f)
+            
+            # Load data into session state
+            st.session_state.matches = data.get('matches', [])
+            st.session_state.league_table = data.get('league_table', get_default_league_table())
+            st.session_state.player_stats = data.get('player_stats', {})
+            st.session_state.teams = data.get('teams', get_default_teams())
+            
+            # Ensure player_stats is properly initialized for all players
+            initialize_missing_player_stats()
+            
+            return True
+    except Exception as e:
+        st.error(f"Error loading data: {str(e)}")
+        return False
+
+def get_default_teams():
+    """Get default team configuration"""
+    return {
+        'Team A': ['Player A1', 'Player A2', 'Player A3', 'Player A4', 'Player A5'],
+        'Team B': ['Player B1', 'Player B2', 'Player B3', 'Player B4', 'Player B5'],
+        'Team C': ['Player C1', 'Player C2', 'Player C3', 'Player C4', 'Player C5'],
+        'Team D': ['Player D1', 'Player D2', 'Player D3', 'Player D4', 'Player D5']
+    }
+
+def get_default_league_table():
+    """Get default league table structure"""
+    return {
+        'Team A': {'matches_played': 0, 'points': 0, 'goals_scored': 0, 'wins': 0, 'losses': 0, 'draws': 0},
+        'Team B': {'matches_played': 0, 'points': 0, 'goals_scored': 0, 'wins': 0, 'losses': 0, 'draws': 0},
+        'Team C': {'matches_played': 0, 'points': 0, 'goals_scored': 0, 'wins': 0, 'losses': 0, 'draws': 0},
+        'Team D': {'matches_played': 0, 'points': 0, 'goals_scored': 0, 'wins': 0, 'losses': 0, 'draws': 0}
+    }
+
+def initialize_missing_player_stats():
+    """Initialize player stats for any missing players"""
+    for team, players in st.session_state.teams.items():
+        for player in players:
+            if player not in st.session_state.player_stats:
+                st.session_state.player_stats[player] = {'goals': 0, 'assists': 0, 'team': team}
+
+def backup_data():
+    """Create a backup of current data with timestamp"""
+    try:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_filename = f"league_backup_{timestamp}.json"
+        
+        data = {
+            'matches': st.session_state.matches,
+            'league_table': st.session_state.league_table,
+            'player_stats': st.session_state.player_stats,
+            'teams': st.session_state.teams,
+            'backup_created': datetime.now().isoformat()
+        }
+        
+        data_dir = "data"
+        backup_path = os.path.join(data_dir, backup_filename)
+        
+        with open(backup_path, 'w') as f:
+            json.dump(data, f, indent=2)
+        
+        return backup_filename
+    except Exception as e:
+        st.error(f"Error creating backup: {str(e)}")
+        return None
 
 # Initialize session state
-
 def initialize_session_state():
-    if 'teams' not in st.session_state:
-        st.session_state.teams = {
-            'Team A': ['Player A1', 'Player A2', 'Player A3', 'Player A4', 'Player A5'],
-            'Team B': ['Player B1', 'Player B2', 'Player B3', 'Player B4', 'Player B5'],
-            'Team C': ['Player C1', 'Player C2', 'Player C3', 'Player C4', 'Player C5'],
-            'Team D': ['Player D1', 'Player D2', 'Player D3', 'Player D4', 'Player D5']
-        }
+    """Initialize session state with default values or load from file"""
+    # Try to load existing data first
+    if not load_data():
+        # If loading fails, initialize with defaults
+        if 'teams' not in st.session_state:
+            st.session_state.teams = get_default_teams()
 
-    if 'matches' not in st.session_state:
-        st.session_state.matches = []
+        if 'matches' not in st.session_state:
+            st.session_state.matches = []
 
-    if 'league_table' not in st.session_state:
-        st.session_state.league_table = {
-            'Team A': {'matches_played': 0, 'points': 0, 'goals_scored': 0, 'wins': 0, 'losses': 0, 'draws': 0},
-            'Team B': {'matches_played': 0, 'points': 0, 'goals_scored': 0, 'wins': 0, 'losses': 0, 'draws': 0},
-            'Team C': {'matches_played': 0, 'points': 0, 'goals_scored': 0, 'wins': 0, 'losses': 0, 'draws': 0},
-            'Team D': {'matches_played': 0, 'points': 0, 'goals_scored': 0, 'wins': 0, 'losses': 0, 'draws': 0}
-        }
+        if 'league_table' not in st.session_state:
+            st.session_state.league_table = get_default_league_table()
 
-    if 'player_stats' not in st.session_state:
-        st.session_state.player_stats = {}
-        for team, players in st.session_state.teams.items():
-            for player in players:
-                st.session_state.player_stats[player] = {'goals': 0, 'assists': 0, 'team': team}
+        if 'player_stats' not in st.session_state:
+            st.session_state.player_stats = {}
+            initialize_missing_player_stats()
 
 def update_league_table(home_team, away_team, home_score, away_score):
     # Update matches played
@@ -68,16 +160,23 @@ def update_player_stats(scorers_data, assists_data):
             st.session_state.player_stats[assist_info['player']]['assists'] += 1
 
 def clear_all_data():
+    """Clear all data and create backup"""
+    # Create backup before clearing
+    backup_filename = backup_data()
+    
+    # Reset all data
     st.session_state.matches = []
-    st.session_state.league_table = {
-        'Team A': {'matches_played': 0, 'points': 0, 'goals_scored': 0, 'wins': 0, 'losses': 0, 'draws': 0},
-        'Team B': {'matches_played': 0, 'points': 0, 'goals_scored': 0, 'wins': 0, 'losses': 0, 'draws': 0},
-        'Team C': {'matches_played': 0, 'points': 0, 'goals_scored': 0, 'wins': 0, 'losses': 0, 'draws': 0},
-        'Team D': {'matches_played': 0, 'points': 0, 'goals_scored': 0, 'wins': 0, 'losses': 0, 'draws': 0}
-    }
+    st.session_state.league_table = get_default_league_table()
+    
+    # Reset player stats
     for team, players in st.session_state.teams.items():
         for player in players:
             st.session_state.player_stats[player] = {'goals': 0, 'assists': 0, 'team': team}
+    
+    # Save the cleared data
+    save_data()
+    
+    return backup_filename
 
 def main():
     st.set_page_config(page_title="Football League Manager", layout="wide")
@@ -85,6 +184,15 @@ def main():
     initialize_session_state()
 
     st.title("⚽ Football League Manager")
+    
+    # Add a small status indicator
+    col1, col2 = st.columns([6, 1])
+    with col2:
+        if os.path.exists(get_data_file_path()):
+            st.success("💾 Data Saved")
+        else:
+            st.warning("⚠️ No Saved Data")
+    
     st.markdown("---")
 
     # Create tabs
@@ -172,7 +280,12 @@ def main():
                 # Add match to history
                 st.session_state.matches.append(match_record)
                 
-                st.success(f"Match completed! {home_team} {home_score} - {away_score} {away_team}")
+                # Save data to file
+                if save_data():
+                    st.success(f"Match completed and saved! {home_team} {home_score} - {away_score} {away_team}")
+                else:
+                    st.error("Match completed but failed to save data!")
+                
                 st.rerun()
         
         with col2:
@@ -259,6 +372,43 @@ def main():
     with tab5:
         st.header("Settings")
         
+        # Data management section
+        st.subheader("Data Management")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if st.button("💾 Manual Save", help="Save current data to file"):
+                if save_data():
+                    st.success("Data saved successfully!")
+                else:
+                    st.error("Failed to save data!")
+        
+        with col2:
+            if st.button("🔄 Reload Data", help="Reload data from file"):
+                if load_data():
+                    st.success("Data reloaded successfully!")
+                    st.rerun()
+                else:
+                    st.error("Failed to reload data!")
+        
+        with col3:
+            if st.button("📋 Create Backup", help="Create a timestamped backup"):
+                backup_filename = backup_data()
+                if backup_filename:
+                    st.success(f"Backup created: {backup_filename}")
+                else:
+                    st.error("Failed to create backup!")
+        
+        # Display data file info
+        file_path = get_data_file_path()
+        if os.path.exists(file_path):
+            file_size = os.path.getsize(file_path)
+            file_modified = datetime.fromtimestamp(os.path.getmtime(file_path))
+            st.info(f"📁 Data file: {file_size} bytes, last modified: {file_modified.strftime('%Y-%m-%d %H:%M:%S')}")
+        
+        st.markdown("---")
+        
         st.subheader("Team Management")
         
         # Edit team rosters
@@ -276,6 +426,7 @@ def main():
                             st.session_state.teams[team_name].remove(player)
                             if player in st.session_state.player_stats:
                                 del st.session_state.player_stats[player]
+                            save_data()  # Save after modification
                             st.rerun()
                 
                 # Add new player
@@ -284,6 +435,7 @@ def main():
                     if new_player not in st.session_state.teams[team_name]:
                         st.session_state.teams[team_name].append(new_player)
                         st.session_state.player_stats[new_player] = {'goals': 0, 'assists': 0, 'team': team_name}
+                        save_data()  # Save after modification
                         st.success(f"Added {new_player} to {team_name}")
                         st.rerun()
                     else:
@@ -293,12 +445,19 @@ def main():
         
         st.subheader("Reset Data")
         st.warning("⚠️ This will permanently delete all match data, statistics, and reset the league table!")
+        st.info("💡 A backup will be created automatically before clearing data.")
         
         if st.button("🗑️ Clear All Data", type="secondary"):
             if st.button("⚠️ Confirm - Clear All Data", type="primary"):
-                clear_all_data()
-                st.success("All data has been cleared!")
+                backup_filename = clear_all_data()
+                if backup_filename:
+                    st.success(f"All data cleared! Backup saved as: {backup_filename}")
+                else:
+                    st.success("All data cleared!")
                 st.rerun()
+
+if __name__ == "__main__":
+    main()
 
 if __name__ == "__main__":
     main()
